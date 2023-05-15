@@ -6,7 +6,6 @@ const db = require("../db");
 /** User of the site. */
 
 class User {
-
   /** Register new user. Returns
    *    {username, password, first_name, last_name, phone}
    */
@@ -22,7 +21,8 @@ class User {
          VALUES
            ($1, $2, $3, $4, $5, current_timestamp)
          RETURNING username, password, first_name, last_name, phone`,
-    [username, password, first_name, last_name, phone]);
+      [username, password, first_name, last_name, phone]
+    );
 
     return result.rows[0];
   }
@@ -33,22 +33,22 @@ class User {
     const result = await db.query(
       `SELECT FROM users
         WHERE username = $1 AND password = $2`,
-        [username, password]
-    )
+      [username, password]
+    );
     //console.log("RESULT IS:", result)
 
-    return(Boolean(result.rows[0]))
+    return Boolean(result.rows[0]);
   }
 
   /** Update last_login_at for user */
 
   static async updateLoginTimestamp(username) {
     const result = await db.query(
-      `UPDATE FROM users
+      `UPDATE users
         SET last_login_at = current_timestamp
         WHERE username = $1`,
-        [username]
-    )
+      [username]
+    );
 
     //return(Boolean(result.rows[0]))
   }
@@ -57,6 +57,13 @@ class User {
    * [{username, first_name, last_name}, ...] */
 
   static async all() {
+    const result = await db.query(
+      `SELECT username, first_name, last_name
+      FROM users
+    `
+    );
+
+    return result.rows;
   }
 
   /** Get: get user by username
@@ -69,6 +76,22 @@ class User {
    *          last_login_at } */
 
   static async get(username) {
+    const result = await db.query(
+      `SELECT username,
+                  first_name,
+                  last_name,
+                  phone,
+                  join_at,
+                  last_login_at
+        FROM users
+        WHERE username = $1
+      `,
+      [username]
+    );
+
+    if (!result.rows[0]) throw new NotFoundError("User does not exist");
+
+    return result.rows[0];
   }
 
   /** Return messages from this user.
@@ -80,6 +103,27 @@ class User {
    */
 
   static async messagesFrom(username) {
+    const messages = await db.query(
+      `SELECT id, to_username AS to_user, body, sent_at, read_at
+        FROM messages
+        WHERE from_username = $1
+      `,
+      [username]
+    );
+
+    messages.rows.map(async (message) => {
+      const to_user = await User.get(message.to_user);
+      console.log(to_user);
+
+      delete to_user.last_login_at;
+      delete to_user.join_at;
+
+      message.to_user = to_user;
+
+      return message;
+    });
+
+    return messages.rows;
   }
 
   /** Return messages to this user.
@@ -90,9 +134,7 @@ class User {
    *   {username, first_name, last_name, phone}
    */
 
-  static async messagesTo(username) {
-  }
+  static async messagesTo(username) {}
 }
-
 
 module.exports = User;

@@ -17,9 +17,10 @@ class User {
                              first_name,
                              last_name,
                              phone,
-                             join_at)
+                             join_at,
+                             last_login_at)
          VALUES
-           ($1, $2, $3, $4, $5, current_timestamp)
+           ($1, $2, $3, $4, $5, current_timestamp, current_timestamp)
          RETURNING username, password, first_name, last_name, phone`,
       [username, password, first_name, last_name, phone]
     );
@@ -43,14 +44,12 @@ class User {
   /** Update last_login_at for user */
 
   static async updateLoginTimestamp(username) {
-    const result = await db.query(
+    await db.query(
       `UPDATE users
         SET last_login_at = current_timestamp
         WHERE username = $1`,
       [username]
     );
-
-    //return(Boolean(result.rows[0]))
   }
 
   /** All: basic info on all users:
@@ -111,17 +110,15 @@ class User {
       [username]
     );
 
-    messages.rows.map(async (message) => {
+    await Promise.all(messages.rows.map(async function(message){
       const to_user = await User.get(message.to_user);
-      console.log(to_user);
 
       delete to_user.last_login_at;
       delete to_user.join_at;
 
       message.to_user = to_user;
-
       return message;
-    });
+    }));
 
     return messages.rows;
   }
@@ -134,7 +131,29 @@ class User {
    *   {username, first_name, last_name, phone}
    */
 
-  static async messagesTo(username) {}
+  static async messagesTo(username) {
+    const messages = await db.query(
+      `SELECT id, from_username AS from_user, body, sent_at, read_at
+        FROM messages
+        WHERE to_username = $1
+      `,
+      [username]
+    );
+
+    await Promise.all(messages.rows.map(async function(message){
+      const from_user = await User.get(message.from_user);
+
+      delete from_user.last_login_at;
+      delete from_user.join_at;
+
+      message.from_user = from_user;
+      return message;
+    }));
+
+    return messages.rows;
+  }
+
 }
+
 
 module.exports = User;

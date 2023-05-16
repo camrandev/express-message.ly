@@ -1,10 +1,10 @@
 "use strict";
 
-const { ensureCorrectUser } = require("../middleware/auth");
-
 const Router = require("express").Router;
 const router = new Router();
 
+const { ensureLoggedIn } = require("../middleware/auth");
+const { UnauthorizedError, BadRequestError } = require("../expressError");
 const Message = require("../models/message.js")
 
 /** GET /:id - get detail of message.
@@ -19,10 +19,19 @@ const Message = require("../models/message.js")
  * Makes sure that the currently-logged-in users is either the to or from user.
  *
  **/
-router.get("/:id", ensureCorrectUser, async function (req, res, next) {
+router.get("/:id", ensureLoggedIn, async function (req, res, next) {
 
   const message = await Message.get(req.params.id);
-  return res.json({ message });
+
+  const fromUserName = message.from_user.username;
+  const toUserName = message.to_user.username;
+  const currentUserName = res.locals.user.username
+
+  if(currentUserName === toUserName || currentUserName === fromUserName){
+    return res.json({ message });
+  }
+
+  throw new UnauthorizedError();
 
 });
 
@@ -33,6 +42,17 @@ router.get("/:id", ensureCorrectUser, async function (req, res, next) {
  *   {message: {id, from_username, to_username, body, sent_at}}
  *
  **/
+router.post("/:id", ensureLoggedIn, async function (req, res, next) {
+  if (req.body === undefined) throw new BadRequestError();
+
+  const {to_username, body} = req.body;
+  const from_username = res.locals.user.username
+
+  const message = await Message.create({from_username, to_username, body});
+
+  return res.json({ message });
+
+});
 
 
 /** POST/:id/read - mark message as read:

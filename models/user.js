@@ -3,7 +3,7 @@
 const { NotFoundError } = require("../expressError");
 const db = require("../db");
 const bcrypt = require("bcrypt");
-const {BCRYPT_WORK_FACTOR} = require("../config")
+const { BCRYPT_WORK_FACTOR } = require("../config");
 
 /** User of the site. */
 
@@ -13,9 +13,7 @@ class User {
    */
 
   static async register({ username, password, first_name, last_name, phone }) {
-
-    const hashedPassword = await bcrypt.hash(
-      password, BCRYPT_WORK_FACTOR);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
 
     const result = await db.query(
       `INSERT INTO users (username,
@@ -37,7 +35,6 @@ class User {
   /** Authenticate: is username/password valid? Returns boolean. */
 
   static async authenticate(username, password) {
-
     const result = await db.query(
       `SELECT password FROM users
         WHERE username = $1`,
@@ -46,8 +43,8 @@ class User {
 
     const user = result.rows[0];
 
-    if (user){
-      if (await bcrypt.compare(password, user.password) === true){
+    if (user) {
+      if ((await bcrypt.compare(password, user.password)) === true) {
         return true;
       }
     }
@@ -60,7 +57,8 @@ class User {
     await db.query(
       `UPDATE users
         SET last_login_at = current_timestamp
-        WHERE username = $1`,
+        WHERE username = $1
+        RETURNING last_login_at`,
       [username]
     );
   }
@@ -117,24 +115,43 @@ class User {
   //TODO: refactor with join or two queries
   static async messagesFrom(username) {
     const messages = await db.query(
-      `SELECT id, to_username AS to_user, body, sent_at, read_at
-        FROM messages
-        WHERE from_username = $1
+      `SELECT m.id, m.to_username AS to_user, m.body, m.sent_at, m.read_at,
+      u.username, u.first_name, u.last_name, u.phone
+      FROM messages AS m
+      JOIN users AS u
+      ON m.to_username = u.username
+      WHERE from_username = $1
       `,
       [username]
     );
 
-    await Promise.all(messages.rows.map(async function(message){
-      const to_user = await User.get(message.to_user);
+    for (const m of messages.rows) {
+      const { username, first_name, last_name, phone } = m;
 
-      delete to_user.last_login_at;
-      delete to_user.join_at;
+      m.to_user = {
+        username,
+        first_name,
+        last_name,
+        phone,
+      };
 
-      message.to_user = to_user;
-      return message;
-    }));
+      for (const key in m.to_user) {
+        delete m[key];
+      }
+    }
 
     return messages.rows;
+
+    //OLD CODE
+    // await Promise.all(messages.rows.map(async function(message){
+    //   const to_user = await User.get(message.to_user);
+
+    //   delete to_user.last_login_at;
+    //   delete to_user.join_at;
+
+    //   message.to_user = to_user;
+    //   return message;
+    // }));
   }
 
   /** Return messages to this user.
@@ -147,27 +164,48 @@ class User {
   //TODO: refactor with join or two queries
   static async messagesTo(username) {
     const messages = await db.query(
-      `SELECT id, from_username AS from_user, body, sent_at, read_at
-        FROM messages
-        WHERE to_username = $1
+      `SELECT m.id, m.from_username AS from_user, m.body, m.sent_at, m.read_at,
+      u.username, u.first_name, u.last_name, u.phone
+      FROM messages AS m
+      JOIN users AS u
+      ON m.from_username = u.username
+      WHERE to_username = $1
       `,
       [username]
     );
 
-    await Promise.all(messages.rows.map(async function(message){
-      const from_user = await User.get(message.from_user);
+    for (const m of messages.rows) {
+      const { username, first_name, last_name, phone } = m;
 
-      delete from_user.last_login_at;
-      delete from_user.join_at;
+      m.from_user = {
+        username,
+        first_name,
+        last_name,
+        phone,
+      };
 
-      message.from_user = from_user;
-      return message;
-    }));
+      for (const key in m.from_user) {
+        delete m[key];
+      }
+    }
 
     return messages.rows;
+
+    //OLD CODE
+    //   await Promise.all(
+    //     messages.rows.map(async function (message) {
+    //       const from_user = await User.get(message.from_user);
+
+    //       delete from_user.last_login_at;
+    //       delete from_user.join_at;
+
+    //       message.from_user = from_user;
+    //       return message;
+    //     })
+    //   );
+
+    //   return messages.rows;
   }
-
 }
-
 
 module.exports = User;

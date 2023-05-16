@@ -1,5 +1,5 @@
 "use strict";
-const express = require('express')
+const express = require("express");
 const Router = require("express").Router;
 const router = new Router();
 
@@ -46,6 +46,7 @@ router.post("/:id", ensureLoggedIn, async function (req, res, next) {
   const from_username = res.locals.user.username;
 
   const message = await Message.create({ from_username, to_username, body });
+  await Message.sendSMS(message)
 
   return res.json({ message });
 });
@@ -63,7 +64,8 @@ router.post("/:id/read", ensureLoggedIn, async function (req, res, next) {
   const currentUserName = res.locals.user.username;
 
   if (toUserName === currentUserName) {
-    const message = Message.markRead(req.params.id);
+    const message = await Message.markRead(req.params.id);
+    console.log("message inside if=", message);
     return res.json({ message });
   }
 

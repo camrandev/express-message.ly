@@ -12,11 +12,12 @@
     "bcrypt": "*",
     "body-parser": "*",
     "cors": "*",
-    "dotenv": "*",
+    "dotenv": "^16.0.3",
     "express": "^5.0.0-alpha.8",
     "express-cors": "*",
     "jsonwebtoken": "*",
     "pg": "*",
-    "supertest": "*"
+    "supertest": "*",
+    "twilio": "^4.11.0"
   }
 }

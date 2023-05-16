@@ -1,5 +1,6 @@
 "use strict";
 
+const express = require('express')
 const Router = require("express").Router;
 const router = new Router();
 const { ensureLoggedIn, ensureCorrectUser } = require("../middleware/auth.js")

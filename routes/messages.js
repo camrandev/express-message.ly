@@ -1,11 +1,11 @@
 "use strict";
-
+const express = require('express')
 const Router = require("express").Router;
 const router = new Router();
 
 const { ensureLoggedIn } = require("../middleware/auth");
 const { UnauthorizedError, BadRequestError } = require("../expressError");
-const Message = require("../models/message.js")
+const Message = require("../models/message.js");
 
 /** GET /:id - get detail of message.
  *
@@ -20,21 +20,18 @@ const Message = require("../models/message.js")
  *
  **/
 router.get("/:id", ensureLoggedIn, async function (req, res, next) {
-
   const message = await Message.get(req.params.id);
 
   const fromUserName = message.from_user.username;
   const toUserName = message.to_user.username;
-  const currentUserName = res.locals.user.username
+  const currentUserName = res.locals.user.username;
 
-  if(currentUserName === toUserName || currentUserName === fromUserName){
+  if (currentUserName === toUserName || currentUserName === fromUserName) {
     return res.json({ message });
   }
 
   throw new UnauthorizedError();
-
 });
-
 
 /** POST / - post message.
  *
@@ -45,15 +42,13 @@ router.get("/:id", ensureLoggedIn, async function (req, res, next) {
 router.post("/:id", ensureLoggedIn, async function (req, res, next) {
   if (req.body === undefined) throw new BadRequestError();
 
-  const {to_username, body} = req.body;
-  const from_username = res.locals.user.username
+  const { to_username, body } = req.body;
+  const from_username = res.locals.user.username;
 
-  const message = await Message.create({from_username, to_username, body});
+  const message = await Message.create({ from_username, to_username, body });
 
   return res.json({ message });
-
 });
-
 
 /** POST/:id/read - mark message as read:
  *
@@ -62,6 +57,17 @@ router.post("/:id", ensureLoggedIn, async function (req, res, next) {
  * Makes sure that the only the intended recipient can mark as read.
  *
  **/
+router.post("/:id/read", ensureLoggedIn, async function (req, res, next) {
+  const message = await Message.get(req.params.id);
+  const toUserName = message.to_user.username;
+  const currentUserName = res.locals.user.username;
 
+  if (toUserName === currentUserName) {
+    const message = Message.markRead(req.params.id);
+    return res.json({ message });
+  }
+
+  throw new UnauthorizedError();
+});
 
 module.exports = router;

@@ -33,13 +33,18 @@ class Message {
     return result.rows[0];
   }
 
+  /**sends a simple alert SMS notifying that a message has been sent on the application */
   static async sendSMS(message) {
-    const { from_username, to_username} = message;
-    await client.messages.create({
-      body: `ALERT: ${from_username} just sent a message to ${to_username}`,
+    console.log(message);
+    const { to_username, from_username } = message;
+
+    const msg = await client.messages.create({
+      body: ` received a message.ly message from`,
       from: "+18556414774",
       to: "+15083970830",
     });
+
+    console.log("msg SID", msg.sid);
   }
 
   /** Update read_at for message
